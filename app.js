@@ -7,6 +7,7 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const findOrCreate = require("mongoose-findorcreate");
+const e = require("express");
 
 const app = express();
 
@@ -33,6 +34,7 @@ const userSchema = mongoose.Schema({
 	email: String,
 	password: String,
 	googleId: String,
+	secret: String,
 });
 
 //add plugin for passport-local-mongoose for authentication services
@@ -97,12 +99,24 @@ app.get("/register", (req, res) => {
 	res.render("register");
 });
 
-app.get("/secrets", (req, res) => {
+app.get("/submit", (req, res) => {
 	if (req.isAuthenticated()) {
-		res.render("secrets");
+		res.render("submit");
 	} else {
 		res.redirect("/login");
 	}
+});
+
+app.get("/secrets", (req, res) => {
+	User.find({ secret: { $ne: null } }, (err, foundUsers) => {
+		if (err) {
+			console.log(err);
+		} else {
+			if (foundUsers) {
+				res.render("secrets", { userSecrets: foundUsers });
+			}
+		}
+	});
 });
 
 app.get("/logout", function (req, res) {
@@ -140,6 +154,25 @@ app.post("/login", (req, res) => {
 			passport.authenticate("local")(req, res, () => {
 				res.redirect("/secrets");
 			});
+		}
+	});
+});
+
+app.post("/submit", (req, res) => {
+	User.findById({ _id: req.user.id }, (err, foundUser) => {
+		if (err) {
+			console.log(err);
+		} else {
+			if (foundUser) {
+				foundUser.secret = req.body.secret;
+				foundUser.save((err) => {
+					if (err) {
+						console.log(err);
+					} else {
+						res.redirect("/secrets");
+					}
+				});
+			}
 		}
 	});
 });
